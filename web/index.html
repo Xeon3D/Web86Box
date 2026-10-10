@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>86Box</title>
+<meta name="description" content="86Box, the PC emulator, running in your browser with WebAssembly.">
+<link rel="icon" href="icons/86Box-yellow.ico">
+<link rel="stylesheet" href="css/86box.css">
+<!-- Adds the cross-origin isolation headers on hosts that cannot set them
+     (e.g. GitHub Pages); does nothing when the server already does. -->
+<script src="coi-serviceworker.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<noscript>86Box needs JavaScript and WebAssembly.</noscript>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
