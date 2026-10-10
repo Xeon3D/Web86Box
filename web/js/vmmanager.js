@@ -122,17 +122,17 @@ export class VMManager {
       const mm = /,\s*(\w+)/.exec(p);
       if (mm && mm[1] !== 'none') cds.push(mm[1].toUpperCase());
     }
-    const snd = ['sndcard', 'sndcard2', 'sndcard3', 'sndcard4'].map((k, i) => ini.get('Sound', k, i === 0 ? 'internal' : 'none')).filter((x) => x !== 'none');
+    const snd = ['sndcard', 'sndcard2', 'sndcard3', 'sndcard4'].map((k) => ini.get('Sound', k, 'none')).filter((x) => x !== 'none');
     const net = [1, 2, 3, 4].map((i) => ini.get('Network', `net_0${i}_card`, 'none')).filter((x) => x !== 'none');
 
     this.details.replaceChildren(
       h('h2', null, h('img', { src: vmIcon(vm), alt: '', style: { width: '40px', height: '40px' } }), vm.name),
       sec('machine', 'System', [['Machine', m?.n], ['CPU', cpu], ['Memory', memStr]]),
-      sec('display', 'Display', [['Video', devName('video', ini.get('Video', 'gfxcard', 'internal'))]]),
+      sec('display', 'Display', [['Video', devName('video', ini.get('Video', 'gfxcard', this.catalog.hasFlag(m, 'MACHINE_VIDEO') ? 'internal' : 'none'))]]),
       sec('storage_controllers', 'Storage', [...disks, ['Floppy drives', fdds.join(', ') || 'None'], ['CD-ROM drives', cds.join(', ') || 'None']]),
       sec('sound', 'Audio', [['Sound cards', snd.map((s) => devName('sound', s)).join(', ') || 'None'], ['MIDI out', devName('midi_out', ini.get('Sound', 'midi_device', 'none'))]]),
       sec('network', 'Network', [['Network cards', net.map((s) => devName('network', s)).join(', ') || 'None']]),
-      sec('input_devices', 'Input', [['Keyboard', devName('keyboard', ini.get('Input devices', 'keyboard_type', 'internal'))], ['Mouse', devName('mouse', ini.get('Input devices', 'mouse_type', 'ps2'))]]),
+      sec('input_devices', 'Input', [['Keyboard', devName('keyboard', ini.get('Input devices', 'keyboard_type', 'internal'))], ['Mouse', devName('mouse', ini.get('Input devices', 'mouse_type', 'none'))]]),
       h('div.row', { style: { marginTop: '6px' } },
         h('button.btn.default', { type: 'button', onclick: () => this.start() }, '▶ Start'),
         h('button.btn', { type: 'button', onclick: () => this.settings() }, 'Settings…'),

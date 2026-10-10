@@ -407,7 +407,7 @@ export class MainWindow {
       this.ini = new Ini(await storage.readText(`vms/${this.vm}/86box.cfg`));
     } catch (e) { /* not written yet */ }
     this.input.kbdRequiresCapture = !!this.ini.getInt('General', 'kbd_req_capture', 0);
-    this.input.mouseEnabled = this.ini.get('Input devices', 'mouse_type', 'ps2') !== 'none';
+    this.input.mouseEnabled = this.ini.get('Input devices', 'mouse_type', 'none') !== 'none'; // config.c default
     this.updateIcons = this.ini.getInt('General', 'update_icons', 1) !== 0;
     this.buildStatusBar();
   }

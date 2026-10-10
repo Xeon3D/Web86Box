@@ -1,0 +1,80 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EMSDK_VERSION: 6.0.12
+  # ROM set (https://github.com/86Box/roms), pinned for reproducible builds.
+  ROMS_REF: fa73a8f9ca1d9ce06b1755c351bdf1eedb1c6bf8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Cache Emscripten ports
+        uses: actions/cache@v4
+        with:
+          path: ~/.emscripten_cache
+          key: emscripten-ports-${{ env.EMSDK_VERSION }}
+
+      - name: Fetch ROM set
+        run: |
+          git init -q roms
+          git -C roms remote add origin https://github.com/86Box/roms.git
+          git -C roms fetch -q --depth 1 origin "$ROMS_REF"
+          git -C roms checkout -q FETCH_HEAD
+
+      - name: Build
+        run: ROMS_DIR="$PWD/roms" ./build.sh
+
+      - name: Smoke test (boot from floppy)
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+          python3 tools/serve.py --dir dist --port 8086 &
+          sleep 2
+          BOOT_SECONDS=40 node tests/boot.mjs http://127.0.0.1:8086/ .
+          node tests/apply.mjs http://127.0.0.1:8086/ .
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

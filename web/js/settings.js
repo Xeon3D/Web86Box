@@ -348,7 +348,7 @@ function machinePage(ctx) {
 function displayPage(ctx) {
   const { catalog: cat, ini } = ctx;
   const S = 'Video';
-  let cur1 = ini.get(S, 'gfxcard', null);
+  let cur1 = ini.get(S, 'gfxcard', null); // absent: internal if on board, else none
   let cur2 = ini.get(S, 'gfxcard_2', 'none');
   const vid1 = h('select');
   const vid2 = h('select');
@@ -383,7 +383,7 @@ function displayPage(ctx) {
       return true;
     });
     vid1.replaceChildren(...list.map((d) => h('option', { value: d.i }, d.n)));
-    vid1.value = cur1 ?? (hasOnboard ? 'internal' : 'vga');
+    vid1.value = cur1 ?? (hasOnboard ? 'internal' : 'none');
     if (vid1.selectedIndex < 0) vid1.selectedIndex = 0;
     vid1.disabled = vid1.options.length <= 1;
     refresh2();
@@ -446,7 +446,7 @@ function inputPage(ctx) {
   const { catalog: cat, ini } = ctx;
   const S = 'Input devices';
   let kbd = ini.get(S, 'keyboard_type', 'internal');
-  let mouse = ini.get(S, 'mouse_type', 'ps2');
+  let mouse = ini.get(S, 'mouse_type', 'none');
   let tablet = ini.get(S, 'tablet_type', 'none');
   const kbdSel = h('select');
   const mouseSel = h('select');
@@ -529,7 +529,7 @@ function soundPage(ctx) {
   const { catalog: cat, ini } = ctx;
   const S = 'Sound';
   const keys = ['sndcard', 'sndcard2', 'sndcard3', 'sndcard4'];
-  const cur = keys.map((k, i) => ini.get(S, k, i === 0 ? 'internal' : 'none'));
+  const cur = keys.map((k) => ini.get(S, k, 'none'));
   const sels = keys.map(() => h('select'));
   const cfgs = sels.map((sel, i) => btn('Configure', () => {
     if (sel.value === 'internal') configureDevice({ catalog: cat, ini, dev: ctx.machine?.snd?.[0], pickFile: ctx.files?.pick });
