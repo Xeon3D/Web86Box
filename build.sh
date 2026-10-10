@@ -39,7 +39,25 @@ emcmake cmake -S "$ROOT/86Box" -B "$BUILD_DIR" -G Ninja \
 cmake --build "$BUILD_DIR" --target 86Box
 
 # Assemble the site.
-mkdir -p "$DIST_DIR"
+mkdir -p "$DIST_DIR/icons/systemicons"
 cp "$BUILD_DIR"/src/86Box.mjs "$BUILD_DIR"/src/86Box.wasm "$DIST_DIR"/
 cp -r "$ROOT"/web/. "$DIST_DIR"/
+# 86Box's own Qt icons, so the UI looks like the desktop version.
+cp "$ROOT"/86Box/src/qt/icons/*.ico "$DIST_DIR"/icons/
+cp "$ROOT"/86Box/src/qt/assets/systemicons/*.png "$DIST_DIR"/icons/systemicons/
+(cd "$DIST_DIR"/icons/systemicons && ls *.png | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))') > "$DIST_DIR"/icons/systemicons.json
+
+# ROM set: ROMS_DIR=<checkout of github.com/86Box/roms> copies it into the
+# site (the emulator downloads individual ROMs on demand). Without it, an
+# existing dist/roms is kept.
+if [ -n "${ROMS_DIR:-}" ]; then
+  mkdir -p "$DIST_DIR/roms"
+  rsync -a --delete --exclude .git "$ROMS_DIR"/ "$DIST_DIR/roms/" 2>/dev/null \
+    || (cd "$ROMS_DIR" && tar --exclude=.git -cf - . | tar -xf - -C "$DIST_DIR/roms")
+fi
+if [ -d "$DIST_DIR/roms" ]; then
+  "$ROOT"/tools/gen-rom-manifest.sh "$DIST_DIR/roms"
+else
+  echo "warning: no ROMs in $DIST_DIR/roms (set ROMS_DIR); machines will be unavailable" >&2
+fi
 echo "Built into $DIST_DIR"

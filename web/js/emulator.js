@@ -31,8 +31,8 @@ export class Emulator extends EventTarget {
     this.imageData = null;
     this.lastStatusSeq = -1;
     this.lastFrameCount = 0;
-    this.screenW = 640;
-    this.screenH = 480;
+    this.screenW = 0; // display size from plat_resize(), 0 = use the frame size
+    this.screenH = 0;
     this.audio = new AudioOutput();
     this.catalog = null;
     this.state = State.BOOT;

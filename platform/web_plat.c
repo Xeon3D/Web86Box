@@ -356,17 +356,30 @@ plat_get_vmm_dir(char *outbuf, const size_t len)
  * Timer functions
  */
 
+/* emscripten_get_now() is epoch-based in workers, which does not fit the
+   32-bit tick counter; count from the first use instead. */
+static double
+web_elapsed_ms(void)
+{
+    static double base = 0.0;
+    double        now  = emscripten_get_now();
+
+    if (base == 0.0)
+        base = now;
+    return now - base;
+}
+
 uint64_t
 plat_timer_read(void)
 {
     /* Microseconds; do_start() sets timer_freq to match. */
-    return (uint64_t) (emscripten_get_now() * 1000.0);
+    return (uint64_t) (web_elapsed_ms() * 1000.0);
 }
 
 uint32_t
 plat_get_ticks(void)
 {
-    return (uint32_t) emscripten_get_now();
+    return (uint32_t) (uint64_t) web_elapsed_ms();
 }
 
 void

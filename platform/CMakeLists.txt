@@ -48,7 +48,7 @@ set(WEB86BOX_LINK_FLAGS
     -sFORCE_FILESYSTEM=1
     -sSUPPORT_LONGJMP=wasm
     -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,HEAPU8,HEAP32,HEAPU32,HEAPF32,wasmMemory
-    -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_web_command,_web_key,_web_mouse_move,_web_mouse_abs,_web_mouse_buttons,_web_mouse_wheel,_web_get_shared,_web_msgbox_reply,_web_joystick_update
+    -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_web_command,_web_key,_web_keyboard_all_up,_web_mouse_move,_web_mouse_abs,_web_mouse_buttons,_web_mouse_wheel,_web_get_shared,_web_msgbox_reply,_web_joystick_update
     --pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web_pre.js
 )
 target_link_options(86Box PRIVATE ${WEB86BOX_LINK_FLAGS})

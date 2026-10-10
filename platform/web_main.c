@@ -37,6 +37,11 @@
 #include <86box/sound.h>
 #include <86box/fdd.h>
 #include <86box/cdrom.h>
+#include <86box/nmi.h>
+#include <86box/mem.h>
+#include <86box/rom.h>
+#include <86box/acpi.h>
+#include "cpu.h"
 
 #include "web_shared.h"
 #include "web_json.h"
@@ -141,11 +146,61 @@ cmd_pop(void)
  * same way the Qt frontend calls them from its GUI thread).
  * ---------------------------------------------------------------------- */
 
+/* Mirrors MainWindow::processKeyboardInput() in qt_mainwindow.cpp. The UI
+   passes XT set 1 scancodes with 0x100 marking the E0 prefix. */
 EMSCRIPTEN_KEEPALIVE void
-web_key(int down, int scancode)
+web_key(int down, int keycode)
+{
+    if (!atomic_load(&cpu_thread_running) || (keycode < 0) || (kbd_req_capture && !mouse_capture))
+        return;
+
+    switch (keycode) {
+        default:
+            break;
+
+        case 0x54: /* Alt + Print Screen */
+            if (down) {
+                keyboard_input(down, 0x38);
+            } else {
+                keyboard_input(down, keycode);
+                keycode = 0x38;
+            }
+            break;
+
+        case 0x11d: /* Right Ctrl */
+            if (rctrl_is_lalt)
+                keycode = 0x38;
+            break;
+
+        case 0x137: /* Print Screen */
+            if (keyboard_recv_ui(0x38) || keyboard_recv_ui(0x138)) {
+                keycode = 0x54;
+            } else if (down) {
+                keyboard_input(down, 0x12a);
+            } else {
+                keyboard_input(down, keycode);
+                keycode = 0x12a;
+            }
+            break;
+
+        case 0x145: /* Pause */
+            if (keyboard_recv_ui(0x1d) || keyboard_recv_ui(0x11d)) {
+                keycode = 0x146;
+            } else {
+                keyboard_input(down, 0xe11d);
+                keycode &= 0x00ff;
+            }
+            break;
+    }
+
+    keyboard_input(down, (uint16_t) keycode);
+}
+
+EMSCRIPTEN_KEEPALIVE void
+web_keyboard_all_up(void)
 {
     if (atomic_load(&cpu_thread_running))
-        keyboard_input(down, (uint16_t) scancode);
+        keyboard_all_up();
 }
 
 EMSCRIPTEN_KEEPALIVE void
@@ -353,6 +408,7 @@ handle_command(char *line)
         atomic_store(&reload_pending, 1);
     } else if (!strcmp(verb, "save_config")) {
         config_save();
+        web_post_event("config_saved", "");
     } else if (!strcmp(verb, "mouse_capture") && argc > 1) {
         mouse_capture                = atoi(argv[1]);
         web_shared.mouse_capture = mouse_capture;
@@ -382,6 +438,55 @@ handle_command(char *line)
         cartridge_mount(atoi(argv[1]), argv[2], 0);
     } else if (!strcmp(verb, "cartridge_eject") && argc > 1) {
         cartridge_eject(atoi(argv[1]));
+    } else if (!strcmp(verb, "nmi")) {
+        nmi_raise();
+    } else if (!strcmp(verb, "acpi_shutdown")) {
+        acpi_pwrbut_pressed = 1;
+    } else if (!strcmp(verb, "rctrl_is_lalt") && argc > 1) {
+        rctrl_is_lalt = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "kbd_req_capture") && argc > 1) {
+        kbd_req_capture = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "force_interpreter") && argc > 1) {
+        cpu_force_interpreter = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "mouse_timed") && argc > 1) {
+        mouse_timed = !atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "mouse_input_mode") && argc > 1) {
+        mouse_input_mode = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "sound_mute") && argc > 1) {
+        sound_muted = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "sound_gain") && argc > 1) {
+        sound_gain = atoi(argv[1]);
+        config_save();
+    } else if (!strcmp(verb, "video_option") && argc > 2) {
+        /* Display options from the View menu, saved in the config. */
+        int v = atoi(argv[2]);
+        if (!strcmp(argv[1], "invert"))
+            invert_display = v;
+        else if (!strcmp(argv[1], "grayscale"))
+            video_grayscale = v;
+        else if (!strcmp(argv[1], "graytype"))
+            video_graytype = v;
+        else if (!strcmp(argv[1], "overscan"))
+            enable_overscan = v;
+        else if (!strcmp(argv[1], "contrast"))
+            vid_cga_contrast = v;
+        else if (!strcmp(argv[1], "force_43"))
+            force_43 = v;
+        video_copy = (video_grayscale || invert_display) ? video_transform_copy : memcpy;
+        if (!strcmp(argv[1], "overscan") || !strcmp(argv[1], "force_43")) {
+            reset_screen_size();
+            for (int i = 0; i < MONITORS_NUM; i++)
+                if (monitors[i].target_buffer)
+                    video_force_resize_set_monitor(1, i);
+        }
+        device_force_redraw();
+        config_save();
     } else if (!strcmp(verb, "status")) {
         send_status_json();
     } else {
@@ -414,6 +519,14 @@ wait_for_start(void)
                 free(cmd);
                 return path;
             }
+            if (!strcmp(cmd, "catalog")) {
+                /* The settings dialog can be used before a VM runs (new
+                   VMs); ROM availability only needs the ROM paths. */
+                plat_init_rom_paths();
+                char *catalog = web_catalog_json();
+                web_post_event("catalog", catalog);
+                free(catalog);
+            }
             free(cmd);
         }
         emscripten_thread_sleep(10);
@@ -425,6 +538,7 @@ main(int argc, char **argv)
 {
     const char *rom_url = (argc > 1) ? argv[1] : "roms";
 
+    (void) plat_get_ticks(); /* start the tick counter's time base */
     memset(&web_shared, 0, sizeof(web_shared));
     web_shared.magic            = WEB_SHARED_MAGIC;
     web_shared.version          = WEB_SHARED_VERSION;

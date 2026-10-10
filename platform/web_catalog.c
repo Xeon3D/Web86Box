@@ -38,6 +38,13 @@
 #include <86box/keyboard.h>
 #include <86box/gameport.h>
 #include <86box/char.h>
+#include <86box/unittester.h>
+#include <86box/novell_cardkey.h>
+#include <86box/vid_ps55da2.h>
+#include <86box/snd_mpu401.h>
+#include <86box/vid_xga_device.h>
+#include <86box/vid_8514a_device.h>
+#include <86box/softpower.h>
 #include "cpu.h"
 
 #include "web_shared.h"
@@ -254,6 +261,14 @@ emit_machines(jbuf_t *b)
             jb_printf(b, "%u,", f->cpus[c].rspeed);
             jb_key(b, "x");
             jb_printf(b, "%g,", f->cpus[c].multi);
+            /* Settings dialog rules from qt_settingsmachine.cpp. */
+            const uint64_t t = f->cpus[c].cpu_type;
+            jb_key(b, "ws");
+            jb_printf(b, "%d,", (t >= CPU_286) && (t < CPU_386DX));
+            jb_key(b, "oi");
+            jb_printf(b, "%d,", !((t < CPU_286) || (t == CPU_IBM486SLC) || (t == CPU_IBM486BL)
+                                  || !strcmp(f->manufacturer, "Cyrix") || !strcmp(f->manufacturer, "ST")
+                                  || (t > CPU_486DLC)));
             jb_key(b, "fpus");
             jb_raw(b, "[");
             for (int p = 0; f->cpus[c].fpus && f->cpus[c].fpus[p].internal_name; p++) {
@@ -261,7 +276,7 @@ emit_machines(jbuf_t *b)
                 jb_str(b, f->cpus[c].fpus[p].name);
                 jb_raw(b, ",");
                 jb_str(b, f->cpus[c].fpus[p].internal_name);
-                jb_raw(b, "],");
+                jb_printf(b, ",%d],", f->cpus[c].fpus[p].type);
             }
             jb_close(b, ']');
             jb_raw(b, "},");
@@ -289,12 +304,14 @@ emit_machines(jbuf_t *b)
         jb_key(b, "a");
         jb_printf(b, "%d,", machine_available(m));
         /* Effective bus/flags as 86Box computes them (incl. implied ones). */
+        /* 64-bit masks as strings: JS numbers only hold 53 bits. */
         jb_key(b, "bus");
-        jb_printf(b, "%llu,", (unsigned long long) machine_has_bus(m, (uintptr_t) -1));
+        jb_printf(b, "\"%llu\",", (unsigned long long) machine_has_bus(m, (uintptr_t) -1));
         jb_key(b, "fl");
-        jb_printf(b, "%llu,", (unsigned long long) machine_has_flags_64(m, (uintptr_t) -1));
+        jb_printf(b, "\"%llu\",", (unsigned long long) machine_has_flags_64(m, (uintptr_t) -1));
         jb_key(b, "ram");
         jb_printf(b, "[%u,%u,%d],", ms->ram.min, ms->ram.max, ms->ram.step);
+
 
         /* Eligible CPUs: [[family index, [cpu indexes...]], ...] */
         jb_key(b, "cpus");
@@ -430,7 +447,7 @@ emit_consts(jbuf_t *b)
 {
     jb_key(b, "consts");
     jb_raw(b, "{");
-#define C(x) jb_printf(b, "\"%s\":%llu,", #x, (unsigned long long) (x))
+#define C(x) jb_printf(b, "\"%s\":\"%llu\",", #x, (unsigned long long) (x))
     C(DEVICE_BUS);
     C(DEVICE_ISA);
     C(DEVICE_ISA16);
@@ -534,6 +551,24 @@ web_catalog_json(void)
     emit_list(&b, "keyboard", (name_fn_t) keyboard_get_internal_name, keyboard_get_device, NULL);
     emit_list(&b, "gameport", gameport_name, gameport_dev, gameport_avail);
     emit_list(&b, "char", char_name, char_dev, NULL);
+
+    /* Standalone devices with their own Configure buttons. */
+    jb_key(&b, "extra");
+    jb_raw(&b, "{");
+#define X(key, dev) jb_key(&b, key); jb_raw(&b, "["); emit_device(&b, (dev).internal_name, &(dev), device_available(&(dev))); jb_close(&b, ']'); jb_raw(&b, ",")
+    X("voodoo", voodoo_device);
+    X("8514a_isa", gen8514_isa_device);
+    X("8514a_mca", ibm8514_mca_device);
+    X("xga", xga_device);
+    X("da2", ps55da2_device);
+    X("mpu401", mpu401_device);
+    X("mpu401_mca", mpu401_mca_device);
+    X("unittester", unittester_device);
+    X("softpower", softpower_device);
+    X("novell_keycard", novell_keycard_device);
+#undef X
+    jb_close(&b, '}');
+    jb_raw(&b, ",");
 
     emit_drives(&b);
 
