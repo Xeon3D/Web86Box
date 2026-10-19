@@ -1,8 +1,8 @@
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index af1b92eb0..f6a06c46f 100644
+index 6dadb92ab..4db98519a 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -178,20 +178,30 @@ if(APPLE)
+@@ -181,20 +181,30 @@ if(APPLE)
      endif()
  endif()
  
@@ -33,7 +33,7 @@ index af1b92eb0..f6a06c46f 100644
  
  configure_file(include/86box/version.h.in include/86box/version.h @ONLY)
  include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-@@ -310,7 +320,9 @@ endif()
+@@ -329,7 +339,9 @@ endif()
  
  add_subdirectory(osd)
  
@@ -84,10 +84,10 @@ index fbf67300a..a6e47fe8b 100644
  if (WIN32)
      # MSYS2
 diff --git a/src/network/CMakeLists.txt b/src/network/CMakeLists.txt
-index fff50d184..29e158218 100644
+index d46749bc4..89d1cc6f5 100644
 --- a/src/network/CMakeLists.txt
 +++ b/src/network/CMakeLists.txt
-@@ -41,9 +41,14 @@ list(APPEND net_sources
+@@ -42,9 +42,14 @@ list(APPEND net_sources
      utils/getline.c
  )
  
@@ -102,7 +102,7 @@ index fff50d184..29e158218 100644
  
  if(WIN32)
      target_link_libraries(PkgConfig::SLIRP INTERFACE wsock32 ws2_32 iphlpapi)
-@@ -63,7 +68,7 @@ if(WIN32)
+@@ -64,7 +69,7 @@ if(WIN32)
      target_link_libraries(86Box ws2_32)
  endif()
  
@@ -111,7 +111,7 @@ index fff50d184..29e158218 100644
      if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
  	set_source_files_properties(net_slirp.c PROPERTIES COMPILE_FLAGS "-I/usr/local/include")
      endif()
-@@ -78,7 +83,7 @@ if (UNIX)
+@@ -79,7 +84,7 @@ if (UNIX)
          endif()
      endif()
  endif()

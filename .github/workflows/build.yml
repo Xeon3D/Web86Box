@@ -16,7 +16,7 @@ concurrency:
 env:
   EMSDK_VERSION: 6.0.12
   # ROM set (https://github.com/86Box/roms), pinned for reproducible builds.
-  ROMS_REF: fa73a8f9ca1d9ce06b1755c351bdf1eedb1c6bf8
+  ROMS_REF: c69660478eeab51a1ad32e586841bca878f292d0
 
 jobs:
   build:
